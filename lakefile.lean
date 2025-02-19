@@ -11,4 +11,4 @@ lean_exe flean where
   moreLinkArgs := #["-lsqlite3"]
 
 require ffi from "ffi"
-require batteries from git "https://github.com/leanprover-community/batteries" @ "main"
+require sqlite from git "https://github.com/bronen/sqlite3-lean4" @ "master"

@@ -1,3 +1,4 @@
 /ffi/.lake
 /.lake
 /.direnv
+test.sqlite3
