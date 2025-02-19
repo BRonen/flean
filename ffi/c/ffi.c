@@ -1,5 +1,6 @@
 #include <lean/lean.h>
 #include <sqlite3.h>
+#include <stdint.h>
 #include <stdio.h>
 
 uint32_t myAdd(uint32_t a, uint32_t b) {
@@ -89,7 +90,7 @@ lean_obj_res lean_sqlite_exec(b_lean_obj_arg conn_box, b_lean_obj_arg query_str)
     return lean_io_result_mk_error(lean_mk_io_error_other_error(c, err));
   }
 
-  cursor->cols = sqlite3_column_count(cursor->stmt);
+  cursor->cols = (uint32_t) sqlite3_column_count(cursor->stmt);
 
   if (cursor->cols == 0)
     return lean_io_result_mk_ok(lean_box(0));
@@ -99,7 +100,45 @@ lean_obj_res lean_sqlite_exec(b_lean_obj_arg conn_box, b_lean_obj_arg query_str)
   return lean_io_result_mk_ok(res);
 }
 
+lean_obj_res lean_sqlite_column_text(b_lean_obj_arg cursor_box, uint32_t col) {
+  cursor_t* cursor = unbox_cursor(cursor_box);
+
+  printf("col: %d\n", col);
+
+  const unsigned char* text = sqlite3_column_text(cursor->stmt, col);
+  printf("text: %s\n", text);
+
+  lean_object* s = lean_mk_string((const char*) text);
+
+  return lean_io_result_mk_ok(s);
+}
+
+lean_obj_res lean_sqlite_column_int(b_lean_obj_arg cursor_box, uint32_t col) {
+  cursor_t* cursor = unbox_cursor(cursor_box);
+  
+  const int integer = sqlite3_column_int(cursor->stmt, col);
+
+  return lean_io_result_mk_ok(lean_box(integer));
+}
+
 lean_obj_res lean_sqlite_step(b_lean_obj_arg cursor_box) {
+  cursor_t* cursor = unbox_cursor(cursor_box);
+
+  int c = sqlite3_step(cursor->stmt);
+
+  if (c == SQLITE_ROW) {
+    return lean_io_result_mk_ok(lean_box(1));
+  }
+
+  if (c == SQLITE_DONE) {
+    return lean_io_result_mk_ok(lean_box(0));
+  }
+  
+  lean_object* err = lean_mk_string(sqlite3_errmsg(sqlite3_db_handle(cursor->stmt)));
+  return lean_io_result_mk_error(lean_mk_io_error_other_error(c, err));
+}
+
+lean_obj_res lean_sqlite_step_row(b_lean_obj_arg cursor_box) {
   cursor_t* cursor = unbox_cursor(cursor_box);
 
   int c = sqlite3_step(cursor->stmt);
@@ -139,6 +178,14 @@ lean_obj_res lean_sqlite_reset_cursor(b_lean_obj_arg cursor_box) {
 
   lean_object *err = lean_mk_string(sqlite3_errmsg(sqlite3_db_handle(cursor->stmt)));
   return lean_io_result_mk_error(lean_mk_io_error_other_error(c, err));
+}
+
+uint32_t lean_sqlite_count_columns_cursor(b_lean_obj_arg cursor_box) {
+  cursor_t* cursor = unbox_cursor(cursor_box);
+
+  printf("%u - %d\n", cursor->cols, cursor->cols);
+
+  return cursor->cols;
 }
 
 int callback(void *NotUsed, int argc, char **argv, char **azColName){
